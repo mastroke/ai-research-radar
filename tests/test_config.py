@@ -1,0 +1,65 @@
+from pathlib import Path
+
+import pytest
+
+from ai_research_radar.config import load_config
+
+
+def test_load_config_reads_toml_items(tmp_path: Path) -> None:
+    config_path = tmp_path / "radar.toml"
+    config_path.write_text(
+        """
+title = "Desk Radar"
+topic = "agent systems"
+watch_terms = ["memory", "eval"]
+output_path = "briefs/today.md"
+interval_seconds = 60
+max_items = 3
+
+[[items]]
+title = "Memory agents"
+url = "https://example.com/memory"
+source = "manual"
+note = "Useful for durable state."
+""".strip(),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path, environ={})
+
+    assert config.title == "Desk Radar"
+    assert config.watch_terms == ("memory", "eval")
+    assert config.output_path == Path("briefs/today.md")
+    assert config.interval_seconds == 60
+    assert config.max_items == 3
+    assert config.items[0].title == "Memory agents"
+
+
+def test_load_config_applies_environment_overrides(tmp_path: Path) -> None:
+    config_path = tmp_path / "radar.toml"
+    config_path.write_text('watch_terms = ["memory"]', encoding="utf-8")
+
+    config = load_config(
+        config_path,
+        environ={
+            "RADAR_TOPIC": "quant agents",
+            "RADAR_WATCH_TERMS": "risk, backtest",
+            "RADAR_OUTPUT_PATH": "out.md",
+            "RADAR_INTERVAL_SECONDS": "120",
+            "RADAR_MAX_ITEMS": "2",
+        },
+    )
+
+    assert config.topic == "quant agents"
+    assert config.watch_terms == ("risk", "backtest")
+    assert config.output_path == Path("out.md")
+    assert config.interval_seconds == 120
+    assert config.max_items == 2
+
+
+def test_load_config_rejects_invalid_interval(tmp_path: Path) -> None:
+    config_path = tmp_path / "radar.toml"
+    config_path.write_text("interval_seconds = 0", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="interval_seconds"):
+        load_config(config_path, environ={})
