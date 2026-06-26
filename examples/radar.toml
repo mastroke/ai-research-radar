@@ -6,6 +6,7 @@ interval_seconds = 86400
 max_items = 5
 sources = ["arxiv", "hackernews", "github", "huggingface"]
 connector_timeout_seconds = 10
+memory_path = ".radar/memory.json"
 
 [[items]]
 title = "Memory agents"

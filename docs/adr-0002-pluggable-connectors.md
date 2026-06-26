@@ -27,5 +27,5 @@ The brief path can now include live items when sources are configured, while CI
 stays deterministic via fixtures. Connectors remain best-effort: one failing
 source does not block others or manual seeds.
 
-The trade-off is no deduplication or seen-store yet. Repeated items across runs
-are expected until milestone r3 adds file-backed memory.
+The trade-off is no graph linking or conflict resolution yet. Repeated items
+across runs are handled by the file-backed memory store added in milestone r3.

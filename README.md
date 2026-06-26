@@ -30,15 +30,15 @@ flowchart LR
     Connectors --> Briefing[Brief compiler]
     CLI --> Briefing
     CLI --> Writer[stdout or markdown file]
+    CLI --> Memory[Seen-store + finding memory]
+    Memory --> Briefing
     SeedItems[Manual seed items] --> CLI
 
     subgraph Planned
-        Memory[Seen-store + finding memory]
         LLM[Model-agnostic synthesis]
         Telegram[Telegram delivery]
     end
 
-    Memory -.-> Briefing
     Briefing -.-> LLM
     LLM -.-> Telegram
 ```
@@ -51,6 +51,7 @@ The system boundary is currently simple:
 | Config | TOML file plus `RADAR_*` environment overrides | Connector credentials and delivery settings |
 | Connectors | arXiv, Hacker News, GitHub, and Hugging Face (best-effort, timeout-bound) | Additional sources and credential-aware rate limits |
 | Brief compiler | Deterministic scoring and markdown rendering | LLM synthesis over multiple source families |
+| Memory | File-backed seen-store and persisted findings | Graph links and conflict resolution |
 | Output | stdout or markdown file | Telegram delivery and managed hosting adapters |
 
 ## Quickstart
@@ -105,8 +106,10 @@ Configured `sources` fetch live items from arXiv, Hacker News, GitHub, and
 Hugging Face with per-request timeouts. Failed connectors are skipped without
 aborting the brief. Optional `GITHUB_TOKEN` improves GitHub rate limits.
 
-This version does not call an LLM, persist seen items, or send Telegram messages
-yet. Manual seed items and connector findings are merged before ranking.
+This version does not call an LLM or send Telegram messages yet. Manual seed
+items and connector findings are merged before ranking. When `memory_path` is set,
+findings persist across runs and URLs already included in a brief are skipped on
+later runs.
 
 ## Roadmap
 
