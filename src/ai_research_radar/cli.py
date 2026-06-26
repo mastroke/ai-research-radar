@@ -10,6 +10,7 @@ from typing import Sequence, TextIO
 
 from ai_research_radar.brief import Finding, compile_brief
 from ai_research_radar.config import RadarConfig, load_config
+from ai_research_radar.connectors import fetch_from_sources
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -94,15 +95,31 @@ def _load_cli_config(args: argparse.Namespace) -> RadarConfig:
         topic=config.topic,
         watch_terms=config.watch_terms,
         items=config.items + cli_items,
+        sources=config.sources,
         output_path=output_path,
         interval_seconds=config.interval_seconds,
         max_items=max_items,
+        connector_timeout_seconds=config.connector_timeout_seconds,
     )
+
+
+def _collect_findings(config: RadarConfig) -> list[Finding]:
+    findings = list(config.items)
+    if config.sources:
+        findings.extend(
+            fetch_from_sources(
+                config.sources,
+                watch_terms=config.watch_terms,
+                timeout=config.connector_timeout_seconds,
+                max_results=config.max_items,
+            )
+        )
+    return findings
 
 
 def _emit_once(config: RadarConfig, *, stdout: TextIO) -> str:
     brief = compile_brief(
-        list(config.items),
+        _collect_findings(config),
         watch_terms=list(config.watch_terms),
         title=config.title,
         max_items=config.max_items,
