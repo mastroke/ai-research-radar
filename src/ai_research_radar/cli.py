@@ -8,10 +8,13 @@ import time
 from pathlib import Path
 from typing import Sequence, TextIO
 
-from ai_research_radar.brief import Finding, compile_brief
+from ai_research_radar.brief import Finding
 from ai_research_radar.config import RadarConfig, load_config
 from ai_research_radar.connectors import fetch_from_sources
 from ai_research_radar.memory import open_memory_store
+from ai_research_radar.synthesis import get_provider, synthesize_brief
+from ai_research_radar.synthesis.base import SynthesisProvider
+from ai_research_radar.synthesis.structured import StructuredBrief
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -102,6 +105,10 @@ def _load_cli_config(args: argparse.Namespace) -> RadarConfig:
         max_items=max_items,
         connector_timeout_seconds=config.connector_timeout_seconds,
         memory_path=config.memory_path,
+        synthesis_provider=config.synthesis_provider,
+        synthesis_model=config.synthesis_model,
+        synthesis_timeout_seconds=config.synthesis_timeout_seconds,
+        synthesis_min_source_families=config.synthesis_min_source_families,
     )
 
 
@@ -129,14 +136,17 @@ def _emit_once(config: RadarConfig, *, stdout: TextIO) -> str:
             "No new items since the last brief. Findings remain in the memory store."
         )
 
-    brief = compile_brief(
+    brief = synthesize_brief(
         unseen_findings,
         watch_terms=list(config.watch_terms),
         title=config.title,
+        topic=config.topic,
+        provider=_resolve_synthesis_provider(config),
         max_items=config.max_items,
+        min_source_families=config.synthesis_min_source_families,
         no_signal_message=no_signal_message,
     )
-    store.mark_briefed(list(brief.items))
+    store.mark_briefed(_findings_from_structured_brief(brief))
     store.persist()
 
     if config.output_path:
@@ -146,6 +156,27 @@ def _emit_once(config: RadarConfig, *, stdout: TextIO) -> str:
         stdout.write(brief.markdown)
 
     return brief.markdown
+
+
+def _resolve_synthesis_provider(config: RadarConfig) -> SynthesisProvider | None:
+    if not config.synthesis_provider:
+        return None
+    return get_provider(
+        config.synthesis_provider,
+        model=config.synthesis_model,
+    )
+
+
+def _findings_from_structured_brief(brief: StructuredBrief) -> list[Finding]:
+    return [
+        Finding(
+            title=item.title,
+            url=item.url,
+            source=item.source,
+            note=item.synthesis,
+        )
+        for item in brief.items
+    ]
 
 
 def _run_loop(args: argparse.Namespace, *, stdout: TextIO) -> int:

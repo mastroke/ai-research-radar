@@ -11,10 +11,13 @@ from typing import Any
 
 from ai_research_radar.brief import Finding
 from ai_research_radar.connectors import CONNECTOR_NAMES
+from ai_research_radar.synthesis.registry import PROVIDER_NAMES
 
 DEFAULT_TOPIC = "agentic AI research"
 DEFAULT_WATCH_TERMS = ("agents", "memory", "evaluation", "MLOps", "quant")
 DEFAULT_CONNECTOR_TIMEOUT_SECONDS = 10.0
+DEFAULT_SYNTHESIS_TIMEOUT_SECONDS = 30.0
+DEFAULT_MIN_SOURCE_FAMILIES = 2
 
 
 @dataclass(frozen=True)
@@ -31,6 +34,10 @@ class RadarConfig:
     max_items: int = 5
     connector_timeout_seconds: float = DEFAULT_CONNECTOR_TIMEOUT_SECONDS
     memory_path: Path | None = None
+    synthesis_provider: str | None = None
+    synthesis_model: str | None = None
+    synthesis_timeout_seconds: float = DEFAULT_SYNTHESIS_TIMEOUT_SECONDS
+    synthesis_min_source_families: int = DEFAULT_MIN_SOURCE_FAMILIES
 
 
 def load_config(
@@ -56,6 +63,21 @@ def load_config(
         raw.get("connector_timeout_seconds", DEFAULT_CONNECTOR_TIMEOUT_SECONDS)
     )
     memory_path = _optional_path(raw.get("memory_path"))
+    synthesis = raw.get("synthesis", {})
+    if synthesis == "" or synthesis is None:
+        synthesis_raw: dict[str, Any] = {}
+    elif not isinstance(synthesis, dict):
+        raise ValueError("synthesis must be a TOML table")
+    else:
+        synthesis_raw = synthesis
+    synthesis_provider = _optional_string(synthesis_raw.get("provider"))
+    synthesis_model = _optional_string(synthesis_raw.get("model"))
+    synthesis_timeout_seconds = float(
+        synthesis_raw.get("timeout_seconds", DEFAULT_SYNTHESIS_TIMEOUT_SECONDS)
+    )
+    synthesis_min_source_families = int(
+        synthesis_raw.get("min_source_families", DEFAULT_MIN_SOURCE_FAMILIES)
+    )
 
     if "RADAR_TITLE" in env:
         title = env["RADAR_TITLE"]
@@ -75,6 +97,14 @@ def load_config(
         connector_timeout_seconds = float(env["RADAR_CONNECTOR_TIMEOUT_SECONDS"])
     if "RADAR_MEMORY_PATH" in env:
         memory_path = Path(env["RADAR_MEMORY_PATH"])
+    if "RADAR_SYNTHESIS_PROVIDER" in env:
+        synthesis_provider = _optional_string(env["RADAR_SYNTHESIS_PROVIDER"])
+    if "RADAR_SYNTHESIS_MODEL" in env:
+        synthesis_model = _optional_string(env["RADAR_SYNTHESIS_MODEL"])
+    if "RADAR_SYNTHESIS_TIMEOUT_SECONDS" in env:
+        synthesis_timeout_seconds = float(env["RADAR_SYNTHESIS_TIMEOUT_SECONDS"])
+    if "RADAR_SYNTHESIS_MIN_SOURCE_FAMILIES" in env:
+        synthesis_min_source_families = int(env["RADAR_SYNTHESIS_MIN_SOURCE_FAMILIES"])
 
     if not watch_terms:
         watch_terms = (topic,)
@@ -84,7 +114,12 @@ def load_config(
         raise ValueError("max_items must be positive")
     if connector_timeout_seconds <= 0:
         raise ValueError("connector_timeout_seconds must be positive")
+    if synthesis_timeout_seconds <= 0:
+        raise ValueError("synthesis_timeout_seconds must be positive")
+    if synthesis_min_source_families <= 0:
+        raise ValueError("synthesis_min_source_families must be positive")
     _validate_sources(sources)
+    _validate_synthesis_provider(synthesis_provider)
 
     return RadarConfig(
         title=title,
@@ -97,6 +132,10 @@ def load_config(
         max_items=max_items,
         connector_timeout_seconds=connector_timeout_seconds,
         memory_path=memory_path,
+        synthesis_provider=synthesis_provider,
+        synthesis_model=synthesis_model,
+        synthesis_timeout_seconds=synthesis_timeout_seconds,
+        synthesis_min_source_families=synthesis_min_source_families,
     )
 
 
@@ -145,6 +184,12 @@ def _optional_path(value: Any) -> Path | None:
     return Path(str(value))
 
 
+def _optional_string(value: Any) -> str | None:
+    if value in (None, ""):
+        return None
+    return str(value).strip().lower() or None
+
+
 def _as_source_tuple(value: Any) -> tuple[str, ...]:
     if value in (None, ""):
         return ()
@@ -160,3 +205,13 @@ def _validate_sources(sources: tuple[str, ...]) -> None:
         if source not in CONNECTOR_NAMES:
             allowed = ", ".join(CONNECTOR_NAMES)
             raise ValueError(f"Unknown source {source!r}. Expected one of: {allowed}")
+
+
+def _validate_synthesis_provider(provider: str | None) -> None:
+    if provider is None:
+        return
+    if provider not in PROVIDER_NAMES:
+        allowed = ", ".join(PROVIDER_NAMES)
+        raise ValueError(
+            f"Unknown synthesis provider {provider!r}. Expected one of: {allowed}"
+        )

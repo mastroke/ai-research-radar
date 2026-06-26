@@ -80,3 +80,27 @@ def test_run_honors_limit_one(capsys) -> None:  # type: ignore[no-untyped-def]
     assert exit_code == 0
     assert output.count("# AI Research Radar Brief") == 1
     assert "Quant risk" in output
+
+
+def test_once_falls_back_when_synthesis_provider_has_no_credentials(
+    monkeypatch,
+    capsys,
+) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("RADAR_SYNTHESIS_PROVIDER", "openai")
+
+    exit_code = main(
+        [
+            "once",
+            "--item",
+            "Memory paper|https://example.com/memory|arxiv|Cross-source note.",
+            "--item",
+            "Eval repo|https://example.com/eval|github|Tooling for eval loops.",
+        ]
+    )
+
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "## Signal" in output
+    assert "## Summary" not in output
+    assert "Memory paper" in output

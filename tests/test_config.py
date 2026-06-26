@@ -81,3 +81,52 @@ def test_load_config_rejects_invalid_interval(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="interval_seconds"):
         load_config(config_path, environ={})
+
+
+def test_load_config_reads_synthesis_table(tmp_path: Path) -> None:
+    config_path = tmp_path / "radar.toml"
+    config_path.write_text(
+        """
+[synthesis]
+provider = "openai"
+model = "gpt-4o-mini"
+timeout_seconds = 45
+min_source_families = 2
+""".strip(),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path, environ={})
+
+    assert config.synthesis_provider == "openai"
+    assert config.synthesis_model == "gpt-4o-mini"
+    assert config.synthesis_timeout_seconds == 45.0
+    assert config.synthesis_min_source_families == 2
+
+
+def test_load_config_applies_synthesis_environment_overrides(tmp_path: Path) -> None:
+    config_path = tmp_path / "radar.toml"
+    config_path.write_text("", encoding="utf-8")
+
+    config = load_config(
+        config_path,
+        environ={
+            "RADAR_SYNTHESIS_PROVIDER": "anthropic",
+            "RADAR_SYNTHESIS_MODEL": "claude-3-5-haiku-latest",
+            "RADAR_SYNTHESIS_TIMEOUT_SECONDS": "60",
+            "RADAR_SYNTHESIS_MIN_SOURCE_FAMILIES": "3",
+        },
+    )
+
+    assert config.synthesis_provider == "anthropic"
+    assert config.synthesis_model == "claude-3-5-haiku-latest"
+    assert config.synthesis_timeout_seconds == 60.0
+    assert config.synthesis_min_source_families == 3
+
+
+def test_load_config_rejects_unknown_synthesis_provider(tmp_path: Path) -> None:
+    config_path = tmp_path / "radar.toml"
+    config_path.write_text('[synthesis]\nprovider = "unknown"', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Unknown synthesis provider"):
+        load_config(config_path, environ={})
