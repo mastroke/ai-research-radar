@@ -61,7 +61,7 @@ python -m pip install -e .
 radar once --item "Memory agents|https://example.com/memory-agents|manual|Relevant to durable agent state"
 ```
 
-Example config:
+Example config lives at `examples/radar.toml`:
 
 ```toml
 title = "AI Research Radar"
@@ -81,19 +81,19 @@ note = "Useful framing for durable agent state and conflict handling."
 Run once with a config file:
 
 ```bash
-radar once --config radar.toml
+radar once --config examples/radar.toml
 ```
 
 Run repeatedly:
 
 ```bash
-radar run --config radar.toml
+radar run --config examples/radar.toml
 ```
 
 For CI or smoke tests, cap the loop:
 
 ```bash
-radar run --config radar.toml --limit 1
+radar run --config examples/radar.toml --limit 1
 ```
 
 ## Current Scope

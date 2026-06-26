@@ -20,5 +20,11 @@ jobs:
       - name: Install package
         run: python -m pip install -e ".[dev]"
 
+      - name: Smoke test radar entry point
+        run: |
+          radar --help
+          radar once --help
+          radar run --help
+
       - name: Run tests
         run: python -m pytest -q
