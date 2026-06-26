@@ -63,10 +63,52 @@ The system boundary is currently simple:
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
+radar once --config examples/configs/minimal.toml
+```
+
+### Screenshots
+
+Terminal output from a minimal config run:
+
+![radar once CLI output](docs/screenshots/cli-once.svg)
+
+Rendered brief shape (deterministic compiler):
+
+![brief preview](docs/screenshots/brief-preview.svg)
+
+Telegram `status` response when delivery and control are configured:
+
+![Telegram status command](docs/screenshots/telegram-status.svg)
+
+### Example configs
+
+| Profile | Path | Use case |
+| --- | --- | --- |
+| Minimal | [`examples/configs/minimal.toml`](examples/configs/minimal.toml) | Manual seed items, offline deterministic brief |
+| Connectors | [`examples/configs/connectors.toml`](examples/configs/connectors.toml) | Live arXiv/HN/GitHub/HF fetch with memory |
+| Full stack | [`examples/radar.toml`](examples/radar.toml) | Schedule block plus optional synthesis and Telegram |
+
+```bash
+# Offline smoke test (no network)
+radar once --config examples/configs/minimal.toml
+
+# Live connectors with memory dedup
+radar once --config examples/configs/connectors.toml
+
+# One-off CLI item
 radar once --item "Memory agents|https://example.com/memory-agents|manual|Relevant to durable agent state"
 ```
 
-Example config lives at `examples/radar.toml`:
+### Example briefs
+
+Static samples checked into the repo (not generated at runtime):
+
+- [`examples/briefs/deterministic-sample.md`](examples/briefs/deterministic-sample.md) — ranked manual and seed items
+- [`examples/briefs/multi-source-sample.md`](examples/briefs/multi-source-sample.md) — cross-source connector shape
+
+Full config reference: [docs/config.md](docs/config.md).
+
+Example `examples/radar.toml`:
 
 ```toml
 title = "AI Research Radar"
@@ -102,6 +144,30 @@ For CI or smoke tests, cap the loop:
 ```bash
 radar run --config examples/radar.toml --limit 1
 ```
+
+## Free core vs Radar Pro
+
+The MIT repository is the **free core**: CLI, connectors, memory, optional BYOK
+synthesis, Telegram delivery, and scheduling helpers. No license key is required.
+
+**Radar Pro** (Gumroad kit under [`packaging/pro-kit/`](packaging/pro-kit/)) sells
+operational time-savers, not gated runtime features:
+
+| Free core (GitHub) | Radar Pro kit |
+| --- | --- |
+| Full `radar` CLI and tests | Persona configs (builder, researcher, investor) |
+| Example configs in `examples/` | Curated synthesis prompt packs |
+| Basic scheduling examples | Production systemd/cron templates with runbooks |
+| ADRs and config reference | Telegram and host deployment guides |
+
+See [`packaging/pro-kit/MANIFEST.md`](packaging/pro-kit/MANIFEST.md) for the
+full boundary. Build a release archive:
+
+```bash
+./packaging/pro-kit/build-archive.sh
+```
+
+Design record: [docs/adr-0007-open-core-packaging.md](docs/adr-0007-open-core-packaging.md).
 
 ## Current Scope
 
@@ -192,7 +258,7 @@ in [docs/config.md](docs/config.md).
 | r4 | Model-agnostic synthesis backend for structured brief generation |
 | r5 | Telegram delivery and locked-down two-way control commands |
 | r6 | Scheduling presets for systemd and cron |
-| r7 | Examples, screenshots, and clear separation between free core and Pro extras |
+| r7 | Examples, screenshots, and clear separation between free core and Pro extras (done) |
 
 ## Development
 
