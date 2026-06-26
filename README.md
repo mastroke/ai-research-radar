@@ -49,7 +49,7 @@ The system boundary is currently simple:
 
 | Layer | Current role | Planned extension |
 | --- | --- | --- |
-| CLI | Runs `once`, `run`, or `telegram poll`; loads config, accepts manual seed items | Scheduling helper presets |
+| CLI | Runs `once`, `run`, `schedule`, or `telegram poll`; loads config, accepts manual seed items | Additional delivery adapters |
 | Config | TOML file plus `RADAR_*` environment overrides | Connector credentials and delivery settings |
 | Connectors | arXiv, Hacker News, GitHub, and Hugging Face (best-effort, timeout-bound) | Additional sources and credential-aware rate limits |
 | Brief compiler | Deterministic scoring and markdown rendering | Cross-source ranking input for synthesis |
@@ -155,6 +155,32 @@ Commands are accepted only from the configured chat id:
 
 - `status` — sources, memory counts, synthesis mode
 - `find <url>` — focused brief for one URL (uses persisted memory when present)
+
+## Scheduling
+
+Production hosts should run `radar once` on a timer instead of keeping
+`radar run` in a shell. The `schedule` helper renders cron or systemd artifacts
+from your config file:
+
+```bash
+radar schedule --config examples/radar.toml --format cron
+radar schedule --config examples/radar.toml --format systemd --output-dir ./systemd
+```
+
+Optional `[schedule]` settings in TOML:
+
+```toml
+[schedule]
+preset = "daily"   # daily | interval
+at = "08:00"       # local HH:MM for the daily preset
+```
+
+The `interval` preset uses root `interval_seconds` and is best paired with
+systemd when the period is not hour-aligned. Add `--with-telegram-poll` to emit a
+long-running unit for `radar telegram poll`.
+
+Static examples live under `examples/scheduling/`. Full config keys are listed
+in [docs/config.md](docs/config.md).
 
 ## Roadmap
 

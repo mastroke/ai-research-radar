@@ -1,0 +1,7 @@
+# Example cron entry for a daily brief at 08:00 local time.
+# Install with: crontab -e
+#
+# Generate a line for your config:
+#   radar schedule --config /path/to/radar.toml --format cron
+
+0 8 * * * cd /var/lib/radar && /usr/bin/radar once --config /etc/radar/radar.toml
