@@ -18,6 +18,7 @@ DEFAULT_WATCH_TERMS = ("agents", "memory", "evaluation", "MLOps", "quant")
 DEFAULT_CONNECTOR_TIMEOUT_SECONDS = 10.0
 DEFAULT_SYNTHESIS_TIMEOUT_SECONDS = 30.0
 DEFAULT_MIN_SOURCE_FAMILIES = 2
+DEFAULT_TELEGRAM_TIMEOUT_SECONDS = 30.0
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,8 @@ class RadarConfig:
     synthesis_model: str | None = None
     synthesis_timeout_seconds: float = DEFAULT_SYNTHESIS_TIMEOUT_SECONDS
     synthesis_min_source_families: int = DEFAULT_MIN_SOURCE_FAMILIES
+    telegram_chat_id: int | None = None
+    telegram_timeout_seconds: float = DEFAULT_TELEGRAM_TIMEOUT_SECONDS
 
 
 def load_config(
@@ -78,6 +81,17 @@ def load_config(
     synthesis_min_source_families = int(
         synthesis_raw.get("min_source_families", DEFAULT_MIN_SOURCE_FAMILIES)
     )
+    telegram = raw.get("telegram", {})
+    if telegram == "" or telegram is None:
+        telegram_raw: dict[str, Any] = {}
+    elif not isinstance(telegram, dict):
+        raise ValueError("telegram must be a TOML table")
+    else:
+        telegram_raw = telegram
+    telegram_chat_id = _optional_int(telegram_raw.get("chat_id"))
+    telegram_timeout_seconds = float(
+        telegram_raw.get("timeout_seconds", DEFAULT_TELEGRAM_TIMEOUT_SECONDS)
+    )
 
     if "RADAR_TITLE" in env:
         title = env["RADAR_TITLE"]
@@ -105,6 +119,10 @@ def load_config(
         synthesis_timeout_seconds = float(env["RADAR_SYNTHESIS_TIMEOUT_SECONDS"])
     if "RADAR_SYNTHESIS_MIN_SOURCE_FAMILIES" in env:
         synthesis_min_source_families = int(env["RADAR_SYNTHESIS_MIN_SOURCE_FAMILIES"])
+    if "RADAR_TELEGRAM_CHAT_ID" in env:
+        telegram_chat_id = int(env["RADAR_TELEGRAM_CHAT_ID"])
+    if "RADAR_TELEGRAM_TIMEOUT_SECONDS" in env:
+        telegram_timeout_seconds = float(env["RADAR_TELEGRAM_TIMEOUT_SECONDS"])
 
     if not watch_terms:
         watch_terms = (topic,)
@@ -118,6 +136,8 @@ def load_config(
         raise ValueError("synthesis_timeout_seconds must be positive")
     if synthesis_min_source_families <= 0:
         raise ValueError("synthesis_min_source_families must be positive")
+    if telegram_timeout_seconds <= 0:
+        raise ValueError("telegram_timeout_seconds must be positive")
     _validate_sources(sources)
     _validate_synthesis_provider(synthesis_provider)
 
@@ -136,6 +156,8 @@ def load_config(
         synthesis_model=synthesis_model,
         synthesis_timeout_seconds=synthesis_timeout_seconds,
         synthesis_min_source_families=synthesis_min_source_families,
+        telegram_chat_id=telegram_chat_id,
+        telegram_timeout_seconds=telegram_timeout_seconds,
     )
 
 
@@ -188,6 +210,12 @@ def _optional_string(value: Any) -> str | None:
     if value in (None, ""):
         return None
     return str(value).strip().lower() or None
+
+
+def _optional_int(value: Any) -> int | None:
+    if value in (None, ""):
+        return None
+    return int(value)
 
 
 def _as_source_tuple(value: Any) -> tuple[str, ...]:

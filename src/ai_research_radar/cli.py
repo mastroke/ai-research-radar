@@ -11,6 +11,14 @@ from typing import Sequence, TextIO
 from ai_research_radar.brief import Finding
 from ai_research_radar.config import RadarConfig, load_config
 from ai_research_radar.connectors import fetch_from_sources
+from ai_research_radar.delivery.telegram import (
+    TELEGRAM_TOKEN_ENV,
+    TelegramClient,
+    deliver_brief_to_telegram,
+    dispatch_telegram_command,
+    is_authorized_chat,
+    resolve_telegram_token,
+)
 from ai_research_radar.memory import open_memory_store
 from ai_research_radar.synthesis import get_provider, synthesize_brief
 from ai_research_radar.synthesis.base import SynthesisProvider
@@ -36,6 +44,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Stop after N iterations. Omit to run until interrupted.",
     )
 
+    telegram = subparsers.add_parser(
+        "telegram",
+        help="Telegram delivery helpers and locked-down control commands",
+    )
+    telegram_sub = telegram.add_subparsers(dest="telegram_command", required=True)
+    poll = telegram_sub.add_parser("poll", help="Listen for Telegram control commands")
+    _add_common_options(poll)
+
     return parser
 
 
@@ -51,6 +67,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.command == "run":
             return _run_loop(args, stdout=sys.stdout)
+
+        if args.command == "telegram":
+            if args.telegram_command == "poll":
+                return _telegram_poll(args)
+            parser.error(f"Unknown telegram command: {args.telegram_command}")
     except KeyboardInterrupt:
         return 130
 
@@ -109,6 +130,8 @@ def _load_cli_config(args: argparse.Namespace) -> RadarConfig:
         synthesis_model=config.synthesis_model,
         synthesis_timeout_seconds=config.synthesis_timeout_seconds,
         synthesis_min_source_families=config.synthesis_min_source_families,
+        telegram_chat_id=config.telegram_chat_id,
+        telegram_timeout_seconds=config.telegram_timeout_seconds,
     )
 
 
@@ -155,6 +178,8 @@ def _emit_once(config: RadarConfig, *, stdout: TextIO) -> str:
     else:
         stdout.write(brief.markdown)
 
+    deliver_brief_to_telegram(config, brief.markdown)
+
     return brief.markdown
 
 
@@ -194,6 +219,54 @@ def _run_loop(args: argparse.Namespace, *, stdout: TextIO) -> int:
         time.sleep(config.interval_seconds)
 
     return 0
+
+
+def _telegram_poll(args: argparse.Namespace) -> int:
+    config = _load_cli_config(args)
+    if config.telegram_chat_id is None:
+        raise ValueError("telegram chat_id must be configured for poll")
+
+    token = resolve_telegram_token()
+    if not token:
+        raise ValueError(f"{TELEGRAM_TOKEN_ENV} is required for telegram poll")
+
+    client = TelegramClient(token, timeout=config.telegram_timeout_seconds)
+    store = open_memory_store(config.memory_path)
+    offset: int | None = None
+
+    while True:
+        updates = client.get_updates(offset=offset, timeout=config.telegram_timeout_seconds)
+        for update in updates:
+            update_id = update.get("update_id")
+            if isinstance(update_id, int):
+                offset = update_id + 1
+
+            message = update.get("message")
+            if not isinstance(message, dict):
+                continue
+
+            chat = message.get("chat")
+            if not isinstance(chat, dict):
+                continue
+
+            chat_id = chat.get("id")
+            if not isinstance(chat_id, int):
+                continue
+            if not is_authorized_chat(chat_id, config.telegram_chat_id):
+                continue
+
+            text = message.get("text")
+            if not isinstance(text, str):
+                continue
+
+            response = dispatch_telegram_command(
+                text,
+                config,
+                store,
+                provider=_resolve_synthesis_provider(config),
+            )
+            if response:
+                client.send_message(config.telegram_chat_id, response)
 
 
 def _parse_item(value: str) -> Finding:
