@@ -1,0 +1,12 @@
+title = "AI Research Radar"
+topic = "agentic AI systems"
+watch_terms = ["agents", "memory", "evaluation", "MLOps"]
+output_path = "briefs/today.md"
+interval_seconds = 86400
+max_items = 5
+
+[[items]]
+title = "Memory agents"
+url = "https://example.com/memory-agents"
+source = "manual"
+note = "Useful framing for durable agent state and conflict handling."
