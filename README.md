@@ -26,18 +26,18 @@ connectors and delivery adapters expand the system.
 ```mermaid
 flowchart LR
     Config[TOML config / env] --> CLI[radar CLI]
-    CLI --> Briefing[Brief compiler]
+    CLI --> Connectors[Source connectors]
+    Connectors --> Briefing[Brief compiler]
+    CLI --> Briefing
     CLI --> Writer[stdout or markdown file]
     SeedItems[Manual seed items] --> CLI
 
     subgraph Planned
-        Connectors[arXiv / HN / GitHub / HF connectors]
         Memory[Seen-store + finding memory]
         LLM[Model-agnostic synthesis]
         Telegram[Telegram delivery]
     end
 
-    Connectors -.-> Briefing
     Memory -.-> Briefing
     Briefing -.-> LLM
     LLM -.-> Telegram
@@ -49,6 +49,7 @@ The system boundary is currently simple:
 | --- | --- | --- |
 | CLI | Runs `once` or `run`, loads config, accepts manual seed items | Scheduling helper and Telegram control commands |
 | Config | TOML file plus `RADAR_*` environment overrides | Connector credentials and delivery settings |
+| Connectors | arXiv, Hacker News, GitHub, and Hugging Face (best-effort, timeout-bound) | Additional sources and credential-aware rate limits |
 | Brief compiler | Deterministic scoring and markdown rendering | LLM synthesis over multiple source families |
 | Output | stdout or markdown file | Telegram delivery and managed hosting adapters |
 
@@ -70,6 +71,8 @@ watch_terms = ["agents", "memory", "evaluation", "MLOps"]
 output_path = "briefs/today.md"
 interval_seconds = 86400
 max_items = 5
+sources = ["arxiv", "hackernews", "github", "huggingface"]
+connector_timeout_seconds = 10
 
 [[items]]
 title = "Memory agents"
@@ -98,9 +101,12 @@ radar run --config examples/radar.toml --limit 1
 
 ## Current Scope
 
-This version does not fetch from arXiv, Hacker News, GitHub, Hugging Face, call
-an LLM, persist seen items, or send Telegram messages yet. It establishes the
-package shape and command contract those pieces will use.
+Configured `sources` fetch live items from arXiv, Hacker News, GitHub, and
+Hugging Face with per-request timeouts. Failed connectors are skipped without
+aborting the brief. Optional `GITHUB_TOKEN` improves GitHub rate limits.
+
+This version does not call an LLM, persist seen items, or send Telegram messages
+yet. Manual seed items and connector findings are merged before ranking.
 
 ## Roadmap
 

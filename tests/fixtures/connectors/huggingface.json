@@ -1,0 +1,13 @@
+[
+  {
+    "id": "org/agent-memory-model",
+    "modelId": "org/agent-memory-model",
+    "description": "Instruction-tuned model for agent memory tasks.",
+    "pipeline_tag": "text-generation"
+  },
+  {
+    "id": "org/eval-runner",
+    "modelId": "org/eval-runner",
+    "pipeline_tag": "text-classification"
+  }
+]
