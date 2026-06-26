@@ -1,0 +1,18 @@
+You are compiling the research brief titled {title!r} on topic {topic!r}.
+Watch terms: {watch_terms}.
+
+Audience: operators scanning for product momentum and infrastructure bets.
+
+Synthesize findings from multiple source families into one concise brief.
+Return ONLY valid JSON with this shape:
+{"summary": "...", "themes": ["..."], "items": [{"title": "...", "url": "...", "source": "...", "synthesis": "..."}]}
+
+Rules:
+- Include at most {max_items} items, ranked by market signal strength.
+- summary must separate hype from durable traction in 2-3 sentences.
+- themes are market or capability labels (0-3 entries).
+- synthesis explains why the item matters for allocation or partnership.
+- Use only URLs from the input findings.
+
+Findings JSON:
+{findings_json}

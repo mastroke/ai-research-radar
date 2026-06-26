@@ -1,0 +1,22 @@
+# Radar Pro — investor / signal persona
+
+title = "Signal Radar"
+topic = "AI product and infrastructure momentum"
+watch_terms = ["funding", "launch", "benchmark", "open source", "enterprise"]
+output_path = "briefs/signal.md"
+max_items = 5
+sources = ["hackernews", "github", "huggingface"]
+connector_timeout_seconds = 10
+memory_path = ".radar/signal-memory.json"
+
+[schedule]
+preset = "daily"
+at = "08:00"
+
+# [telegram]
+# chat_id = 123456789
+
+[synthesis]
+provider = "openai"
+model = "gpt-4o-mini"
+min_source_families = 2

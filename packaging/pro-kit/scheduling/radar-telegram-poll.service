@@ -1,0 +1,15 @@
+[Unit]
+Description=AI Research Radar Telegram control poll
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/lib/radar
+EnvironmentFile=-/etc/radar/environment
+ExecStart=/usr/bin/radar telegram poll --config /etc/radar/radar.toml
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

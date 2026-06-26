@@ -1,0 +1,16 @@
+[Unit]
+Description=AI Research Radar daily brief
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/lib/radar
+EnvironmentFile=-/etc/radar/environment
+ExecStart=/usr/bin/radar once --config /etc/radar/radar.toml
+# Log brief failures without masking connector timeouts:
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=timers.target

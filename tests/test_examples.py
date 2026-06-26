@@ -14,6 +14,11 @@ EXAMPLE_CONFIGS = (
     REPO_ROOT / "examples" / "configs" / "minimal.toml",
     REPO_ROOT / "examples" / "configs" / "connectors.toml",
 )
+PRO_KIT_CONFIGS = (
+    REPO_ROOT / "packaging" / "pro-kit" / "configs" / "builder.toml",
+    REPO_ROOT / "packaging" / "pro-kit" / "configs" / "researcher.toml",
+    REPO_ROOT / "packaging" / "pro-kit" / "configs" / "investor.toml",
+)
 EXAMPLE_BRIEFS = (
     REPO_ROOT / "examples" / "briefs" / "deterministic-sample.md",
     REPO_ROOT / "examples" / "briefs" / "multi-source-sample.md",
@@ -25,6 +30,13 @@ def test_example_configs_load(config_path: Path) -> None:
     config = load_config(config_path, environ={})
     assert config.title
     assert config.watch_terms
+
+
+@pytest.mark.parametrize("config_path", PRO_KIT_CONFIGS, ids=lambda p: p.name)
+def test_pro_kit_configs_load(config_path: Path) -> None:
+    config = load_config(config_path, environ={})
+    assert config.sources
+    assert config.schedule.preset in {"daily", "interval"}
 
 
 @pytest.mark.parametrize("brief_path", EXAMPLE_BRIEFS, ids=lambda p: p.name)

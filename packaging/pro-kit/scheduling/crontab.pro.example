@@ -1,0 +1,5 @@
+# Pro cron example — daily brief at 08:00 with secrets loaded from file.
+# Merge with: radar schedule --config /etc/radar/radar.toml --format cron
+
+SHELL=/bin/bash
+0 8 * * * set -a && source /etc/radar/environment && set +a && cd /var/lib/radar && /usr/bin/radar once --config /etc/radar/radar.toml
