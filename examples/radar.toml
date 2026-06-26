@@ -8,6 +8,11 @@ sources = ["arxiv", "hackernews", "github", "huggingface"]
 connector_timeout_seconds = 10
 memory_path = ".radar/memory.json"
 
+# Optional Telegram delivery (requires RADAR_TELEGRAM_BOT_TOKEN)
+# [telegram]
+# chat_id = 123456789
+# timeout_seconds = 30
+
 # Optional LLM synthesis (requires API key env vars; see docs/adr-0004)
 # [synthesis]
 # provider = "openai"

@@ -2,8 +2,8 @@
 
 AI Research Radar is a self-hostable CLI foundation for turning selected AI
 research items into a concise daily brief. The first version focuses on the
-package boundary, config model, and `radar` command surface needed before source
-connectors, memory, LLM synthesis, and Telegram delivery are added.
+package boundary, config model, and `radar` command surface for source
+connectors, memory, LLM synthesis, and Telegram delivery.
 
 The current MVP is intentionally offline and deterministic. It reads seed items
 from a TOML config file or the CLI, ranks them against configured watch terms,
@@ -35,25 +35,27 @@ flowchart LR
     Briefing --> Synthesis
     CLI --> Memory[Seen-store + finding memory]
     Memory --> Briefing
+    Briefing --> Delivery[Telegram delivery]
+    Delivery --> Operator[Operator chat]
 
-    subgraph Planned
-        Telegram[Telegram delivery]
+    subgraph Control
+        TelegramPoll[radar telegram poll]
     end
 
-    Synthesis -.-> Telegram
+    TelegramPoll --> Delivery
 ```
 
 The system boundary is currently simple:
 
 | Layer | Current role | Planned extension |
 | --- | --- | --- |
-| CLI | Runs `once` or `run`, loads config, accepts manual seed items | Scheduling helper and Telegram control commands |
+| CLI | Runs `once`, `run`, or `telegram poll`; loads config, accepts manual seed items | Scheduling helper presets |
 | Config | TOML file plus `RADAR_*` environment overrides | Connector credentials and delivery settings |
 | Connectors | arXiv, Hacker News, GitHub, and Hugging Face (best-effort, timeout-bound) | Additional sources and credential-aware rate limits |
 | Brief compiler | Deterministic scoring and markdown rendering | Cross-source ranking input for synthesis |
 | Synthesis | Optional OpenAI, Anthropic, or Azure backends with BYOK | Provider failover chains and prompt packs |
 | Memory | File-backed seen-store and persisted findings | Graph links and conflict resolution |
-| Output | stdout or markdown file | Telegram delivery and managed hosting adapters |
+| Output | stdout, markdown file, or Telegram when configured | Managed hosting adapters |
 
 ## Quickstart
 
@@ -125,7 +127,34 @@ Synthesis provider environment variables:
 | `anthropic` | `RADAR_ANTHROPIC_API_KEY` |
 | `azure` | `RADAR_AZURE_OPENAI_API_KEY`, `RADAR_AZURE_OPENAI_ENDPOINT`, `RADAR_AZURE_OPENAI_DEPLOYMENT` |
 
-Telegram delivery is not implemented yet.
+### Telegram delivery
+
+Set a bot token and lock delivery to one chat id:
+
+```bash
+export RADAR_TELEGRAM_BOT_TOKEN="..."
+export RADAR_TELEGRAM_CHAT_ID="123456789"
+```
+
+Or configure in TOML (token still comes from the environment):
+
+```toml
+[telegram]
+chat_id = 123456789
+timeout_seconds = 30
+```
+
+`radar once` and `radar run` send the compiled brief to that chat after the
+usual stdout or file write. Listen for operator commands in a separate process:
+
+```bash
+radar telegram poll --config examples/radar.toml
+```
+
+Commands are accepted only from the configured chat id:
+
+- `status` — sources, memory counts, synthesis mode
+- `find <url>` — focused brief for one URL (uses persisted memory when present)
 
 ## Roadmap
 
