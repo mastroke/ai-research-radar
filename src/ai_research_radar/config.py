@@ -11,6 +11,7 @@ from typing import Any
 
 from ai_research_radar.brief import Finding
 from ai_research_radar.connectors import CONNECTOR_NAMES
+from ai_research_radar.schedule import ScheduleSettings, parse_schedule_settings
 from ai_research_radar.synthesis.registry import PROVIDER_NAMES
 
 DEFAULT_TOPIC = "agentic AI research"
@@ -41,6 +42,7 @@ class RadarConfig:
     synthesis_min_source_families: int = DEFAULT_MIN_SOURCE_FAMILIES
     telegram_chat_id: int | None = None
     telegram_timeout_seconds: float = DEFAULT_TELEGRAM_TIMEOUT_SECONDS
+    schedule: ScheduleSettings = ScheduleSettings()
 
 
 def load_config(
@@ -92,6 +94,17 @@ def load_config(
     telegram_timeout_seconds = float(
         telegram_raw.get("timeout_seconds", DEFAULT_TELEGRAM_TIMEOUT_SECONDS)
     )
+    schedule = raw.get("schedule", {})
+    if schedule == "" or schedule is None:
+        schedule_raw: dict[str, Any] = {}
+    elif not isinstance(schedule, dict):
+        raise ValueError("schedule must be a TOML table")
+    else:
+        schedule_raw = schedule
+    schedule_settings = parse_schedule_settings(
+        _optional_string(schedule_raw.get("preset")),
+        at=_optional_string(schedule_raw.get("at")),
+    )
 
     if "RADAR_TITLE" in env:
         title = env["RADAR_TITLE"]
@@ -123,6 +136,16 @@ def load_config(
         telegram_chat_id = int(env["RADAR_TELEGRAM_CHAT_ID"])
     if "RADAR_TELEGRAM_TIMEOUT_SECONDS" in env:
         telegram_timeout_seconds = float(env["RADAR_TELEGRAM_TIMEOUT_SECONDS"])
+    if "RADAR_SCHEDULE_PRESET" in env:
+        schedule_settings = parse_schedule_settings(
+            env["RADAR_SCHEDULE_PRESET"],
+            at=schedule_settings.at,
+        )
+    if "RADAR_SCHEDULE_AT" in env:
+        schedule_settings = parse_schedule_settings(
+            schedule_settings.preset,
+            at=env["RADAR_SCHEDULE_AT"],
+        )
 
     if not watch_terms:
         watch_terms = (topic,)
@@ -158,6 +181,7 @@ def load_config(
         synthesis_min_source_families=synthesis_min_source_families,
         telegram_chat_id=telegram_chat_id,
         telegram_timeout_seconds=telegram_timeout_seconds,
+        schedule=schedule_settings,
     )
 
 

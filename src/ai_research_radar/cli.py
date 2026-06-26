@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 from pathlib import Path
@@ -20,6 +21,13 @@ from ai_research_radar.delivery.telegram import (
     resolve_telegram_token,
 )
 from ai_research_radar.memory import open_memory_store
+from ai_research_radar.schedule import (
+    build_schedule_context,
+    parse_schedule_settings,
+    render_cron_line,
+    render_systemd_units,
+    render_telegram_poll_service,
+)
 from ai_research_radar.synthesis import get_provider, synthesize_brief
 from ai_research_radar.synthesis.base import SynthesisProvider
 from ai_research_radar.synthesis.structured import StructuredBrief
@@ -52,6 +60,53 @@ def build_parser() -> argparse.ArgumentParser:
     poll = telegram_sub.add_parser("poll", help="Listen for Telegram control commands")
     _add_common_options(poll)
 
+    schedule = subparsers.add_parser(
+        "schedule",
+        help="Render cron or systemd scheduling presets for radar once",
+    )
+    schedule.add_argument(
+        "-c",
+        "--config",
+        type=Path,
+        default=None,
+        help="Path to a TOML config file. Defaults to RADAR_CONFIG if set.",
+    )
+    schedule.add_argument(
+        "--format",
+        choices=("cron", "systemd"),
+        required=True,
+        help="Output a cron line or systemd unit pair.",
+    )
+    schedule.add_argument(
+        "--preset",
+        choices=("daily", "interval"),
+        default=None,
+        help="Schedule preset. Defaults to the config schedule table.",
+    )
+    schedule.add_argument(
+        "--at",
+        default=None,
+        metavar="HH:MM",
+        help="Local run time for the daily preset (24-hour clock).",
+    )
+    schedule.add_argument(
+        "--working-directory",
+        type=Path,
+        default=None,
+        help="Working directory for generated commands. Defaults to the config parent.",
+    )
+    schedule.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help="Write systemd unit files into this directory instead of stdout.",
+    )
+    schedule.add_argument(
+        "--with-telegram-poll",
+        action="store_true",
+        help="Also emit a long-running telegram poll systemd service.",
+    )
+
     return parser
 
 
@@ -72,6 +127,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.telegram_command == "poll":
                 return _telegram_poll(args)
             parser.error(f"Unknown telegram command: {args.telegram_command}")
+
+        if args.command == "schedule":
+            return _emit_schedule(args, stdout=sys.stdout)
     except KeyboardInterrupt:
         return 130
 
@@ -132,6 +190,7 @@ def _load_cli_config(args: argparse.Namespace) -> RadarConfig:
         synthesis_min_source_families=config.synthesis_min_source_families,
         telegram_chat_id=config.telegram_chat_id,
         telegram_timeout_seconds=config.telegram_timeout_seconds,
+        schedule=config.schedule,
     )
 
 
@@ -219,6 +278,56 @@ def _run_loop(args: argparse.Namespace, *, stdout: TextIO) -> int:
         time.sleep(config.interval_seconds)
 
     return 0
+
+
+def _emit_schedule(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    config_path = _resolve_schedule_config_path(args)
+    config = load_config(config_path)
+    settings = parse_schedule_settings(
+        args.preset,
+        at=args.at,
+        default_preset=config.schedule.preset,
+        default_at=config.schedule.at,
+    )
+    context = build_schedule_context(
+        config_path=config_path,
+        interval_seconds=config.interval_seconds,
+        settings=settings,
+        working_directory=args.working_directory,
+    )
+
+    if args.format == "cron":
+        stdout.write(render_cron_line(context) + "\n")
+        return 0
+
+    service, timer = render_systemd_units(context)
+    if args.output_dir is not None:
+        output_dir = args.output_dir
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / "radar-once.service").write_text(service, encoding="utf-8")
+        (output_dir / "radar-once.timer").write_text(timer, encoding="utf-8")
+        if args.with_telegram_poll:
+            poll_service = render_telegram_poll_service(context)
+            (output_dir / "radar-telegram-poll.service").write_text(
+                poll_service,
+                encoding="utf-8",
+            )
+        return 0
+
+    stdout.write(service)
+    stdout.write(timer)
+    if args.with_telegram_poll:
+        stdout.write(render_telegram_poll_service(context))
+    return 0
+
+
+def _resolve_schedule_config_path(args: argparse.Namespace) -> Path:
+    if args.config is not None:
+        return args.config
+    env_path = os.environ.get("RADAR_CONFIG")
+    if env_path:
+        return Path(env_path)
+    raise ValueError("schedule requires --config or RADAR_CONFIG")
 
 
 def _telegram_poll(args: argparse.Namespace) -> int:

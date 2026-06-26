@@ -130,3 +130,36 @@ def test_load_config_rejects_unknown_synthesis_provider(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Unknown synthesis provider"):
         load_config(config_path, environ={})
+
+
+def test_load_config_reads_schedule_table(tmp_path: Path) -> None:
+    config_path = tmp_path / "radar.toml"
+    config_path.write_text(
+        """
+[schedule]
+preset = "interval"
+at = "10:20"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path, environ={})
+
+    assert config.schedule.preset == "interval"
+    assert config.schedule.at == "10:20"
+
+
+def test_load_config_applies_schedule_environment_overrides(tmp_path: Path) -> None:
+    config_path = tmp_path / "radar.toml"
+    config_path.write_text('[schedule]\npreset = "daily"', encoding="utf-8")
+
+    config = load_config(
+        config_path,
+        environ={
+            "RADAR_SCHEDULE_PRESET": "interval",
+            "RADAR_SCHEDULE_AT": "11:00",
+        },
+    )
+
+    assert config.schedule.preset == "interval"
+    assert config.schedule.at == "11:00"
