@@ -11,6 +11,7 @@ from typing import Sequence, TextIO
 from ai_research_radar.brief import Finding, compile_brief
 from ai_research_radar.config import RadarConfig, load_config
 from ai_research_radar.connectors import fetch_from_sources
+from ai_research_radar.memory import open_memory_store
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -100,6 +101,7 @@ def _load_cli_config(args: argparse.Namespace) -> RadarConfig:
         interval_seconds=config.interval_seconds,
         max_items=max_items,
         connector_timeout_seconds=config.connector_timeout_seconds,
+        memory_path=config.memory_path,
     )
 
 
@@ -118,12 +120,24 @@ def _collect_findings(config: RadarConfig) -> list[Finding]:
 
 
 def _emit_once(config: RadarConfig, *, stdout: TextIO) -> str:
+    store = open_memory_store(config.memory_path)
+    all_findings = store.merge_findings(_collect_findings(config))
+    unseen_findings = store.filter_unseen(all_findings)
+    no_signal_message = None
+    if not unseen_findings and all_findings:
+        no_signal_message = (
+            "No new items since the last brief. Findings remain in the memory store."
+        )
+
     brief = compile_brief(
-        _collect_findings(config),
+        unseen_findings,
         watch_terms=list(config.watch_terms),
         title=config.title,
         max_items=config.max_items,
+        no_signal_message=no_signal_message,
     )
+    store.mark_briefed(list(brief.items))
+    store.persist()
 
     if config.output_path:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)

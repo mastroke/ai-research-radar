@@ -39,12 +39,19 @@ def compile_brief(
     title: str = "AI Research Radar",
     generated_at: datetime | None = None,
     max_items: int = 5,
+    no_signal_message: str | None = None,
 ) -> Brief:
     """Rank configured findings and render a concise markdown brief."""
 
     timestamp = generated_at or datetime.now(UTC)
     ranked_items = _rank_findings(findings, watch_terms)[:max_items]
-    markdown = _render_markdown(title, timestamp, ranked_items, watch_terms)
+    markdown = _render_markdown(
+        title,
+        timestamp,
+        ranked_items,
+        watch_terms,
+        no_signal_message=no_signal_message,
+    )
 
     return Brief(
         title=title,
@@ -70,6 +77,8 @@ def _render_markdown(
     generated_at: datetime,
     findings: list[Finding],
     watch_terms: list[str],
+    *,
+    no_signal_message: str | None = None,
 ) -> str:
     date_label = generated_at.astimezone(UTC).strftime("%Y-%m-%d")
     lines = [
@@ -81,13 +90,12 @@ def _render_markdown(
     ]
 
     if not findings:
-        lines.extend(
-            [
-                "",
-                "No seed items were configured. Add `[[items]]` entries to the config "
-                "file or pass `--item` URLs to start a radar run.",
-            ]
+        empty_message = (
+            no_signal_message
+            or "No seed items were configured. Add `[[items]]` entries to the config "
+            "file or pass `--item` URLs to start a radar run."
         )
+        lines.extend(["", empty_message])
     else:
         for index, finding in enumerate(findings, start=1):
             note = shorten(finding.note, width=140, placeholder="...") if finding.note else ""

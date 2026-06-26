@@ -30,6 +30,7 @@ class RadarConfig:
     interval_seconds: int = 86_400
     max_items: int = 5
     connector_timeout_seconds: float = DEFAULT_CONNECTOR_TIMEOUT_SECONDS
+    memory_path: Path | None = None
 
 
 def load_config(
@@ -54,6 +55,7 @@ def load_config(
     connector_timeout_seconds = float(
         raw.get("connector_timeout_seconds", DEFAULT_CONNECTOR_TIMEOUT_SECONDS)
     )
+    memory_path = _optional_path(raw.get("memory_path"))
 
     if "RADAR_TITLE" in env:
         title = env["RADAR_TITLE"]
@@ -71,6 +73,8 @@ def load_config(
         sources = _split_env_list(env["RADAR_SOURCES"])
     if "RADAR_CONNECTOR_TIMEOUT_SECONDS" in env:
         connector_timeout_seconds = float(env["RADAR_CONNECTOR_TIMEOUT_SECONDS"])
+    if "RADAR_MEMORY_PATH" in env:
+        memory_path = Path(env["RADAR_MEMORY_PATH"])
 
     if not watch_terms:
         watch_terms = (topic,)
@@ -92,6 +96,7 @@ def load_config(
         interval_seconds=interval_seconds,
         max_items=max_items,
         connector_timeout_seconds=connector_timeout_seconds,
+        memory_path=memory_path,
     )
 
 
