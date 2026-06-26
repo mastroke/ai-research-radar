@@ -8,6 +8,7 @@ __pycache__/
 dist/
 build/
 briefs/
+!examples/briefs/
 .radar/
 .env
 .DS_Store
