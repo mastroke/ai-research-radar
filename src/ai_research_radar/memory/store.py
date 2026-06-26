@@ -4,12 +4,21 @@ from __future__ import annotations
 
 import json
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from ai_research_radar.brief import Finding
 
 _STORE_VERSION = 1
+
+
+@dataclass(frozen=True)
+class MemoryStats:
+    """Counts exposed for operator status commands."""
+
+    findings: int
+    seen: int
 
 
 def finding_key(url: str) -> str:
@@ -46,6 +55,16 @@ class MemoryStore(ABC):
     def persist(self) -> None:
         """Flush in-memory state to durable storage when applicable."""
 
+    def stats(self) -> MemoryStats:
+        """Return store counts for operator status reporting."""
+
+        return MemoryStats(findings=0, seen=0)
+
+    def find_by_url(self, url: str) -> Finding | None:
+        """Return a persisted finding that matches the normalized URL, if any."""
+
+        return None
+
 
 class NullMemoryStore(MemoryStore):
     """No-op store used when memory persistence is disabled."""
@@ -61,6 +80,9 @@ class NullMemoryStore(MemoryStore):
 
     def persist(self) -> None:
         return None
+
+    def stats(self) -> MemoryStats:
+        return MemoryStats(findings=0, seen=0)
 
 
 class FileMemoryStore(MemoryStore):
@@ -83,6 +105,16 @@ class FileMemoryStore(MemoryStore):
     def mark_briefed(self, findings: list[Finding]) -> None:
         for finding in findings:
             self._seen_urls.add(finding_key(finding.url))
+
+    def stats(self) -> MemoryStats:
+        return MemoryStats(findings=len(self._findings), seen=len(self._seen_urls))
+
+    def find_by_url(self, url: str) -> Finding | None:
+        key = finding_key(url)
+        for finding in self._findings:
+            if finding_key(finding.url) == key:
+                return finding
+        return None
 
     def persist(self) -> None:
         payload = {

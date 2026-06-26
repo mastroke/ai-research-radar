@@ -2,6 +2,7 @@
 
 from ai_research_radar.memory.store import (
     FileMemoryStore,
+    MemoryStats,
     MemoryStore,
     NullMemoryStore,
     dedup_findings,
@@ -11,6 +12,7 @@ from ai_research_radar.memory.store import (
 
 __all__ = [
     "FileMemoryStore",
+    "MemoryStats",
     "MemoryStore",
     "NullMemoryStore",
     "dedup_findings",
