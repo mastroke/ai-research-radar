@@ -28,19 +28,19 @@ flowchart LR
     Config[TOML config / env] --> CLI[radar CLI]
     CLI --> Connectors[Source connectors]
     Connectors --> Briefing[Brief compiler]
+    SeedItems[Manual seed items] --> CLI
     CLI --> Briefing
-    CLI --> Writer[stdout or markdown file]
+    CLI --> Synthesis[Synthesis backend]
+    Synthesis --> Writer[stdout or markdown file]
+    Briefing --> Synthesis
     CLI --> Memory[Seen-store + finding memory]
     Memory --> Briefing
-    SeedItems[Manual seed items] --> CLI
 
     subgraph Planned
-        LLM[Model-agnostic synthesis]
         Telegram[Telegram delivery]
     end
 
-    Briefing -.-> LLM
-    LLM -.-> Telegram
+    Synthesis -.-> Telegram
 ```
 
 The system boundary is currently simple:
@@ -50,7 +50,8 @@ The system boundary is currently simple:
 | CLI | Runs `once` or `run`, loads config, accepts manual seed items | Scheduling helper and Telegram control commands |
 | Config | TOML file plus `RADAR_*` environment overrides | Connector credentials and delivery settings |
 | Connectors | arXiv, Hacker News, GitHub, and Hugging Face (best-effort, timeout-bound) | Additional sources and credential-aware rate limits |
-| Brief compiler | Deterministic scoring and markdown rendering | LLM synthesis over multiple source families |
+| Brief compiler | Deterministic scoring and markdown rendering | Cross-source ranking input for synthesis |
+| Synthesis | Optional OpenAI, Anthropic, or Azure backends with BYOK | Provider failover chains and prompt packs |
 | Memory | File-backed seen-store and persisted findings | Graph links and conflict resolution |
 | Output | stdout or markdown file | Telegram delivery and managed hosting adapters |
 
@@ -106,10 +107,25 @@ Configured `sources` fetch live items from arXiv, Hacker News, GitHub, and
 Hugging Face with per-request timeouts. Failed connectors are skipped without
 aborting the brief. Optional `GITHUB_TOKEN` improves GitHub rate limits.
 
-This version does not call an LLM or send Telegram messages yet. Manual seed
-items and connector findings are merged before ranking. When `memory_path` is set,
-findings persist across runs and URLs already included in a brief are skipped on
-later runs.
+When `[synthesis]` is configured with a supported provider and matching API key
+environment variables, the CLI compiles cross-source briefs through the model
+backend when findings span at least two source families. Missing credentials,
+single-source runs, and provider errors fall back to the deterministic markdown
+compiler.
+
+Manual seed items and connector findings are merged before ranking. When
+`memory_path` is set, findings persist across runs and URLs already included in
+a brief are skipped on later runs.
+
+Synthesis provider environment variables:
+
+| Provider | Required variables |
+| --- | --- |
+| `openai` | `RADAR_OPENAI_API_KEY` |
+| `anthropic` | `RADAR_ANTHROPIC_API_KEY` |
+| `azure` | `RADAR_AZURE_OPENAI_API_KEY`, `RADAR_AZURE_OPENAI_ENDPOINT`, `RADAR_AZURE_OPENAI_DEPLOYMENT` |
+
+Telegram delivery is not implemented yet.
 
 ## Roadmap
 

@@ -8,6 +8,13 @@ sources = ["arxiv", "hackernews", "github", "huggingface"]
 connector_timeout_seconds = 10
 memory_path = ".radar/memory.json"
 
+# Optional LLM synthesis (requires API key env vars; see docs/adr-0004)
+# [synthesis]
+# provider = "openai"
+# model = "gpt-4o-mini"
+# timeout_seconds = 30
+# min_source_families = 2
+
 [[items]]
 title = "Memory agents"
 url = "https://example.com/memory-agents"
