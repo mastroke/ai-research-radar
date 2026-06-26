@@ -42,6 +42,7 @@ def test_load_config_applies_environment_overrides(tmp_path: Path) -> None:
     config = load_config(
         config_path,
         environ={
+            "RADAR_TITLE": "Morning Desk",
             "RADAR_TOPIC": "quant agents",
             "RADAR_WATCH_TERMS": "risk, backtest",
             "RADAR_OUTPUT_PATH": "out.md",
@@ -50,11 +51,28 @@ def test_load_config_applies_environment_overrides(tmp_path: Path) -> None:
         },
     )
 
+    assert config.title == "Morning Desk"
     assert config.topic == "quant agents"
     assert config.watch_terms == ("risk", "backtest")
     assert config.output_path == Path("out.md")
     assert config.interval_seconds == 120
     assert config.max_items == 2
+
+
+def test_load_config_resolves_radar_config_env(tmp_path: Path) -> None:
+    config_path = tmp_path / "nested" / "radar.toml"
+    config_path.parent.mkdir()
+    config_path.write_text(
+        'title = "Env Path Radar"\n[[items]]\ntitle = "Seed"\nurl = "https://example.com/seed"',
+        encoding="utf-8",
+    )
+
+    config = load_config(
+        environ={"RADAR_CONFIG": str(config_path)},
+    )
+
+    assert config.title == "Env Path Radar"
+    assert config.items[0].title == "Seed"
 
 
 def test_load_config_rejects_invalid_interval(tmp_path: Path) -> None:
