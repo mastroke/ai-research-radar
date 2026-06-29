@@ -1,5 +1,9 @@
 # AI Research Radar
 
+[![CI](https://github.com/mastroke/ai-research-radar/actions/workflows/ci.yml/badge.svg)](https://github.com/mastroke/ai-research-radar/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/github/license/mastroke/ai-research-radar)](LICENSE)
+
 AI Research Radar is a self-hostable CLI foundation for turning selected AI
 research items into a concise daily brief. The first version focuses on the
 package boundary, config model, and `radar` command surface for source
