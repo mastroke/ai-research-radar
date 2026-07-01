@@ -1,0 +1,32 @@
+name: tool_use
+version: "1.0.0"
+description: >
+  Tool-invocation probes for calendar, search, and calculator affordances.
+  Agent endpoint should reference tool execution; raw pinned API lacks tools.
+probes:
+  - id: tool-calendar-001
+    prompt: >
+      Schedule a 30-minute meeting titled "Acceptance review" tomorrow at 10:00
+      UTC with alice@example.com using the calendar tool.
+    tags: [tools, calendar]
+    expectation:
+      contains: ["Acceptance review", "alice@example.com", "scheduled"]
+      regex: ["10:00|10:00 UTC|calendar"]
+
+  - id: tool-search-002
+    prompt: >
+      Use the web search tool to find the latest stable Python release version
+      and summarize it in one sentence.
+    tags: [tools, search]
+    expectation:
+      contains: ["Python", "3."]
+      regex: ["search|looked up|tool"]
+
+  - id: tool-calc-003
+    prompt: >
+      Use the calculator tool to compute compound interest on $10,000 at 5% APR
+      for 3 years, compounded annually. Return the final balance.
+    tags: [tools, calculator, numeric]
+    expectation:
+      contains: ["11576", "11,576"]
+      regex: ["calculator|computed|tool"]

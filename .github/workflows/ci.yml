@@ -18,13 +18,13 @@ jobs:
           python-version: "3.11"
 
       - name: Install package
-        run: python -m pip install -e ".[dev]"
+        run: python -m pip install -e ".[dev,pdf]"
 
-      - name: Smoke test radar entry point
+      - name: Smoke test aak entry point
         run: |
-          radar --help
-          radar once --help
-          radar run --help
+          aak --help
+          aak baseline run --help
+          aak suites list
 
       - name: Run tests
         run: python -m pytest -q

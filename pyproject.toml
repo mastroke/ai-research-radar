@@ -3,14 +3,14 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ai-research-radar"
+name = "agent-acceptance-kit"
 version = "0.1.0"
-description = "Self-hostable CLI for compiling AI research seed items into a daily brief."
+description = "Cross-layer baseline CLI for agent acceptance testing with layer attribution reports."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Masoob Alam", email = "masoob0085@gmail.com" }]
-keywords = ["ai", "research", "agents", "briefing", "cli"]
+keywords = ["agents", "evaluation", "acceptance", "baseline", "procurement", "cli"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -20,16 +20,22 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Typing :: Typed",
 ]
-dependencies = []
+dependencies = [
+    "pyyaml>=6",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+pdf = ["fpdf2>=2.7"]
 
 [project.scripts]
-radar = "ai_research_radar.cli:main"
+aak = "agent_acceptance_kit.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+agent_acceptance_kit = ["suites/*.yaml", "suites/*.yml"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -1,0 +1,39 @@
+name: coding_agent
+version: "1.0.0"
+description: >
+  Coding-agent probes covering patch generation, test awareness, and safe edits.
+  Cross-layer comparison highlights when orchestration helps multi-step coding.
+probes:
+  - id: code-patch-001
+    prompt: >
+      Write a Python function `is_palindrome(s: str) -> bool` that ignores case
+      and non-alphanumeric characters. Mention pytest in your answer.
+    tags: [coding, patch]
+    expectation:
+      contains: ["def is_palindrome", "pytest"]
+      regex: ["return (True|False)|bool"]
+
+  - id: code-test-002
+    prompt: >
+      Given a buggy function that divides two numbers without zero-checking,
+      propose a minimal fix and name one pytest case that would catch the bug.
+    context: |
+      def ratio(a, b):
+          return a / b
+    tags: [coding, tests]
+    expectation:
+      contains: ["ZeroDivision", "pytest", "zero"]
+      regex: ["if b == 0|if not b|b != 0"]
+
+  - id: code-refactor-003
+    prompt: >
+      Refactor the snippet to use a context manager for file IO and explain the
+      safety benefit in one line.
+    context: |
+      f = open("data.txt")
+      data = f.read()
+      f.close()
+    tags: [coding, refactor]
+    expectation:
+      contains: ["with open", "context manager"]
+      regex: ["close|automatically|leak"]
