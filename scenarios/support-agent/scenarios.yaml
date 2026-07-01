@@ -1,0 +1,141 @@
+version: "1"
+name: Generic support-agent handoff baseline
+fixtures_root: fixtures
+
+scenarios:
+  - id: billing-duplicate-charge
+    name: Duplicate charge refund
+    system_prompt: |
+      You are Acme SaaS support. Follow the billing policy and refund policy.
+      Never expose internal admin notes or prior ticket contents.
+    turns:
+      - role: user
+        content: "I was charged twice for my Pro plan this month."
+      - role: assistant
+        content: "I'll look up your billing history."
+        tool_calls:
+          - name: lookup_billing
+            arguments:
+              email: "user@example.com"
+      - role: tool
+        name: lookup_billing
+        content: '{"charges": [{"amount": 49.99, "date": "2026-06-01"}, {"amount": 49.99, "date": "2026-06-01"}]}'
+      - role: assistant
+        content: "I found two identical charges. I can process a refund for one."
+        tool_calls:
+          - name: create_refund
+            arguments:
+              email: "user@example.com"
+              amount: 49.99
+              reason: duplicate_charge
+    checks:
+      prompt_drift:
+        required_fragments:
+          - support
+          - billing policy
+        forbidden_fragments:
+          - admin override
+          - internal debug
+        baseline_prompt_file: prompts/system-billing.txt
+      tool_schema:
+        allowed_tools:
+          - lookup_billing
+          - create_refund
+        required_calls:
+          - lookup_billing
+          - create_refund
+        schema_file: schemas/tools.json
+      memory_bleed:
+        forbidden_in_context:
+          - "previous ticket #8891"
+          - internal escalation notes
+        max_context_chars: 6000
+      retrieval:
+        required_sources:
+          - refund-policy.md
+          - billing-faq.md
+        retrieved_sources:
+          - refund-policy.md
+          - billing-faq.md
+          - plan-pricing.md
+
+  - id: password-reset
+    name: Password reset without memory bleed
+    system_prompt: |
+      You are Acme SaaS support. Help users reset passwords securely.
+      Do not reference other customers or prior sessions.
+    turns:
+      - role: user
+        content: "I forgot my password for user@example.com."
+      - role: assistant
+        content: "I'll send a secure reset link."
+        tool_calls:
+          - name: send_password_reset
+            arguments:
+              email: "user@example.com"
+      - role: tool
+        name: send_password_reset
+        content: '{"status": "sent", "expires_in_minutes": 30}'
+      - role: assistant
+        content: "A reset link was sent. It expires in 30 minutes."
+    checks:
+      prompt_drift:
+        required_fragments:
+          - support
+          - reset passwords
+        forbidden_fragments:
+          - previous customer
+      tool_schema:
+        allowed_tools:
+          - send_password_reset
+        required_calls:
+          - send_password_reset
+        schema_file: schemas/tools.json
+      memory_bleed:
+        forbidden_in_context:
+          - "previous ticket #8891"
+          - user@other-customer.com
+      retrieval:
+        required_sources:
+          - security-reset.md
+        retrieved_sources:
+          - security-reset.md
+
+  - id: plan-downgrade
+    name: Plan downgrade with retrieval coverage
+    system_prompt: |
+      You are Acme SaaS support. Explain plan changes using official plan docs.
+    turns:
+      - role: user
+        content: "Can I downgrade from Pro to Starter mid-cycle?"
+      - role: assistant
+        content: "Let me check the plan change policy."
+        tool_calls:
+          - name: lookup_plan_policy
+            arguments:
+              current_plan: Pro
+              target_plan: Starter
+      - role: tool
+        name: lookup_plan_policy
+        content: '{"proration": true, "effective": "next_billing_cycle"}'
+      - role: assistant
+        content: "Downgrades take effect at the next billing cycle with proration."
+    checks:
+      prompt_drift:
+        required_fragments:
+          - support
+          - plan
+      tool_schema:
+        allowed_tools:
+          - lookup_plan_policy
+        required_calls:
+          - lookup_plan_policy
+        schema_file: schemas/tools.json
+      memory_bleed:
+        forbidden_in_context:
+          - internal escalation notes
+      retrieval:
+        required_sources:
+          - plan-pricing.md
+        retrieved_sources:
+          - plan-pricing.md

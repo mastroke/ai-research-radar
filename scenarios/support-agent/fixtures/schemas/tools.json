@@ -1,0 +1,14 @@
+{
+  "lookup_billing": {
+    "required": ["email"]
+  },
+  "create_refund": {
+    "required": ["email", "amount", "reason"]
+  },
+  "send_password_reset": {
+    "required": ["email"]
+  },
+  "lookup_plan_policy": {
+    "required": ["current_plan", "target_plan"]
+  }
+}

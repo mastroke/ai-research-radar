@@ -7,8 +7,6 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-briefs/
-!examples/briefs/
-.radar/
+.handoff/
 .env
 .DS_Store

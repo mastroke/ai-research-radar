@@ -20,11 +20,15 @@ jobs:
       - name: Install package
         run: python -m pip install -e ".[dev]"
 
-      - name: Smoke test radar entry point
+      - name: Smoke test agent-handoff entry point
         run: |
-          radar --help
-          radar once --help
-          radar run --help
+          agent-handoff --help
+          agent-handoff baseline run --help
+          agent-handoff report generate --help
+
+      - name: Run sample baseline
+        run: |
+          agent-handoff baseline run --config scenarios/support-agent/scenarios.yaml
 
       - name: Run tests
         run: python -m pytest -q
