@@ -1,0 +1,20 @@
+title = "Agent Acceptance Baseline"
+frozen_probe_version = "1.0.0"
+output_dir = "acceptance-runs"
+suites = ["rag", "tool_use", "coding_agent"]
+
+[layer_a]
+name = "agent-endpoint"
+kind = "mock"
+# kind = "agent"
+# endpoint = "https://agent.example.com/v1/complete"
+# model = "agent-prod"
+# api_key_env = "AAK_AGENT_API_KEY"
+
+[layer_b]
+name = "raw-api"
+kind = "mock"
+# kind = "api"
+# endpoint = "https://api.openai.com/v1/chat/completions"
+# model = "gpt-4.1-mini"
+# api_key_env = "AAK_RAW_API_KEY"

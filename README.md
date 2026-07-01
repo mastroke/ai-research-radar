@@ -1,275 +1,145 @@
-# AI Research Radar
+# Agent Acceptance Kit
 
-[![CI](https://github.com/mastroke/ai-research-radar/actions/workflows/ci.yml/badge.svg)](https://github.com/mastroke/ai-research-radar/actions/workflows/ci.yml)
+[![CI](https://github.com/mastroke/agent-acceptance-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/mastroke/agent-acceptance-kit/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/github/license/mastroke/ai-research-radar)](LICENSE)
+[![License: MIT](https://img.shields.io/github/license/mastroke/agent-acceptance-kit)](LICENSE)
 
-AI Research Radar is a self-hostable CLI foundation for turning selected AI
-research items into a concise daily brief. The first version focuses on the
-package boundary, config model, and `radar` command surface for source
-connectors, memory, LLM synthesis, and Telegram delivery.
+Python CLI for **cross-layer agent acceptance baselines**: run the same frozen
+probe set against **Layer A** (full agent endpoint) and **Layer B** (raw pinned
+API), then emit a **layer attribution verdict** plus markdown/PDF acceptance
+reports suitable for engineering procurement.
 
-The current MVP is intentionally offline and deterministic. It reads seed items
-from a TOML config file or the CLI, ranks them against configured watch terms,
-and emits a markdown brief to stdout or a file.
+Conceptually aligned with the frozen-harness cross-layer methodology from
+[mastroke/agent-loop-hillclimber](https://github.com/mastroke/agent-loop-hillclimber);
+this repository is **standalone** and ships its own probe suites and report
+generators.
 
-## Why
+## Why cross-layer baselines?
 
-AI research discovery is noisy across arXiv, Hacker News, GitHub, Hugging Face,
-and private notes. A raw feed adds more work; a useful radar needs to remember
-what has already been seen, connect related work, and deliver a short brief
-where the operator already works.
-
-This repository starts with the smallest production-shaped slice: a typed Python
-package, a stable CLI, config via file or environment, and tests around the
-briefing behavior. That gives the product a reliable core before network
-connectors and delivery adapters expand the system.
+Evaluating an agent product on end-to-end demos alone makes it hard to tell
+whether quality comes from the model, retrieval, tools, or orchestration bugs.
+Running identical probes on both the deployed agent stack and a pinned raw API
+surfaces **agent value-add** (A passes, B fails) versus **agent regression**
+(B passes, A fails) versus **shared failure** (both fail).
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-    Config[TOML config / env] --> CLI[radar CLI]
-    CLI --> Connectors[Source connectors]
-    Connectors --> Briefing[Brief compiler]
-    SeedItems[Manual seed items] --> CLI
-    CLI --> Briefing
-    CLI --> Synthesis[Synthesis backend]
-    Synthesis --> Writer[stdout or markdown file]
-    Briefing --> Synthesis
-    CLI --> Memory[Seen-store + finding memory]
-    Memory --> Briefing
-    Briefing --> Delivery[Telegram delivery]
-    Delivery --> Operator[Operator chat]
+flowchart TB
+    Config[TOML config / env] --> CLI[aak CLI]
+    CLI --> Loader[Frozen probe loader]
+    Loader --> Suites[RAG / tool-use / coding suites]
 
-    subgraph Control
-        TelegramPoll[radar telegram poll]
+    CLI --> Runner[Cross-layer runner]
+    Runner --> A[Layer A connector\nfull agent endpoint]
+    Runner --> B[Layer B connector\nraw pinned API]
+
+    A --> Attribution[Layer attribution engine]
+    B --> Attribution
+
+    Attribution --> JSON[baseline-result.json]
+    Attribution --> MD[Markdown report]
+    Attribution --> PDF[PDF report]
+
+    subgraph Procurement
+        Pack[docs/procurement-pack]
     end
 
-    TelegramPoll --> Delivery
+    MD --> Pack
 ```
 
-The system boundary is currently simple:
-
-| Layer | Current role | Planned extension |
-| --- | --- | --- |
-| CLI | Runs `once`, `run`, `schedule`, or `telegram poll`; loads config, accepts manual seed items | Additional delivery adapters |
-| Config | TOML file plus `RADAR_*` environment overrides | Connector credentials and delivery settings |
-| Connectors | arXiv, Hacker News, GitHub, and Hugging Face (best-effort, timeout-bound) | Additional sources and credential-aware rate limits |
-| Brief compiler | Deterministic scoring and markdown rendering | Cross-source ranking input for synthesis |
-| Synthesis | Optional OpenAI, Anthropic, or Azure backends with BYOK | Provider failover chains and prompt packs |
-| Memory | File-backed seen-store and persisted findings | Graph links and conflict resolution |
-| Output | stdout, markdown file, or Telegram when configured | Managed hosting adapters |
+| Component | Role |
+| --- | --- |
+| `aak baseline run` | Execute frozen probes on Layer A and B |
+| Probe suites | Versioned YAML in `src/agent_acceptance_kit/suites/` |
+| Connectors | `mock` (offline), `agent` (HTTP agent endpoint), `api` (raw API) |
+| Attribution | Classify each probe: baseline met, value-add, regression, shared failure |
+| Reports | Markdown (always) and PDF (optional `[pdf]` extra) |
+| Procurement pack | Report template + sample clause snippets (not legal advice) |
 
 ## Quickstart
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e .
-radar once --config examples/configs/minimal.toml
+python -m pip install -e ".[dev]"
+
+# Offline mock baseline (no network)
+aak baseline run --config examples/baseline-mock.toml \
+  --report-md acceptance-runs/report.md
+
+# List starter suites
+aak suites list
+
+# Render PDF from saved JSON (optional extra)
+python -m pip install -e ".[dev,pdf]"
+aak report acceptance-runs/baseline-result.json --format pdf -o report.pdf
 ```
 
-### Screenshots
+Example stdout verdict snippet:
 
-Terminal output from a minimal config run:
-
-![radar once CLI output](docs/screenshots/cli-once.svg)
-
-Rendered brief shape (deterministic compiler):
-
-![brief preview](docs/screenshots/brief-preview.svg)
-
-Telegram `status` response when delivery and control are configured:
-
-![Telegram status command](docs/screenshots/telegram-status.svg)
-
-### Example configs
-
-| Profile | Path | Use case |
-| --- | --- | --- |
-| Minimal | [`examples/configs/minimal.toml`](examples/configs/minimal.toml) | Manual seed items, offline deterministic brief |
-| Connectors | [`examples/configs/connectors.toml`](examples/configs/connectors.toml) | Live arXiv/HN/GitHub/HF fetch with memory |
-| Full stack | [`examples/radar.toml`](examples/radar.toml) | Schedule block plus optional synthesis and Telegram |
-
-```bash
-# Offline smoke test (no network)
-radar once --config examples/configs/minimal.toml
-
-# Live connectors with memory dedup
-radar once --config examples/configs/connectors.toml
-
-# One-off CLI item
-radar once --item "Memory agents|https://example.com/memory-agents|manual|Relevant to durable agent state"
+```json
+{
+  "verdict": {
+    "classification": "agent_value_add",
+    "pass_rate_a": 1.0,
+    "pass_rate_b": 0.33,
+    "summary": "Agent layer adds measurable value on 6 probes versus raw API."
+  }
+}
 ```
 
-### Example briefs
+## Starter probe suites
 
-Static samples checked into the repo (not generated at runtime):
+| Suite | Probes | Focus |
+| --- | ---: | --- |
+| `rag` | 3 | Context citation, conflict resolution |
+| `tool_use` | 3 | Calendar, search, calculator tool paths |
+| `coding_agent` | 3 | Patch generation, pytest awareness, safe refactor |
 
-- [`examples/briefs/deterministic-sample.md`](examples/briefs/deterministic-sample.md) — ranked manual and seed items
-- [`examples/briefs/multi-source-sample.md`](examples/briefs/multi-source-sample.md) — cross-source connector shape
+Extend by adding versioned YAML under `src/agent_acceptance_kit/suites/` and
+listing the suite in config.
 
-Full config reference: [docs/config.md](docs/config.md).
+## Configuration
 
-Example `examples/radar.toml`:
+See [`examples/baseline-mock.toml`](examples/baseline-mock.toml). Key fields:
 
 ```toml
-title = "AI Research Radar"
-topic = "agentic AI systems"
-watch_terms = ["agents", "memory", "evaluation", "MLOps"]
-output_path = "briefs/today.md"
-interval_seconds = 86400
-max_items = 5
-sources = ["arxiv", "hackernews", "github", "huggingface"]
-connector_timeout_seconds = 10
+[layer_a]
+name = "agent-endpoint"
+kind = "agent"  # mock | agent | api
+endpoint = "https://agent.example.com/v1/complete"
+model = "agent-prod"
+api_key_env = "AAK_AGENT_API_KEY"
 
-[[items]]
-title = "Memory agents"
-url = "https://example.com/memory-agents"
-source = "manual"
-note = "Useful framing for durable agent state and conflict handling."
+[layer_b]
+name = "raw-api"
+kind = "api"
+endpoint = "https://api.openai.com/v1/chat/completions"
+model = "gpt-4.1-mini"
+api_key_env = "AAK_RAW_API_KEY"
 ```
 
-Run once with a config file:
+Set `AAK_CONFIG` to default a config path.
 
-```bash
-radar once --config examples/radar.toml
-```
+## Procurement pack
 
-Run repeatedly:
+[`docs/procurement-pack/`](docs/procurement-pack/) includes:
 
-```bash
-radar run --config examples/radar.toml
-```
-
-For CI or smoke tests, cap the loop:
-
-```bash
-radar run --config examples/radar.toml --limit 1
-```
-
-## Free core vs Radar Pro
-
-The MIT repository is the **free core**: CLI, connectors, memory, optional BYOK
-synthesis, Telegram delivery, and scheduling helpers. No license key is required.
-
-**Radar Pro** (Gumroad kit under [`packaging/pro-kit/`](packaging/pro-kit/)) sells
-operational time-savers, not gated runtime features:
-
-| Free core (GitHub) | Radar Pro kit |
-| --- | --- |
-| Full `radar` CLI and tests | Persona configs (builder, researcher, investor) |
-| Example configs in `examples/` | Curated synthesis prompt packs |
-| Basic scheduling examples | Production systemd/cron templates with runbooks |
-| ADRs and config reference | Telegram and host deployment guides |
-
-See [`packaging/pro-kit/MANIFEST.md`](packaging/pro-kit/MANIFEST.md) for the
-full boundary. Build a release archive:
-
-```bash
-./packaging/pro-kit/build-archive.sh
-```
-
-Design record: [docs/adr-0007-open-core-packaging.md](docs/adr-0007-open-core-packaging.md).
-
-## Current Scope
-
-Configured `sources` fetch live items from arXiv, Hacker News, GitHub, and
-Hugging Face with per-request timeouts. Failed connectors are skipped without
-aborting the brief. Optional `GITHUB_TOKEN` improves GitHub rate limits.
-
-When `[synthesis]` is configured with a supported provider and matching API key
-environment variables, the CLI compiles cross-source briefs through the model
-backend when findings span at least two source families. Missing credentials,
-single-source runs, and provider errors fall back to the deterministic markdown
-compiler.
-
-Manual seed items and connector findings are merged before ranking. When
-`memory_path` is set, findings persist across runs and URLs already included in
-a brief are skipped on later runs.
-
-Synthesis provider environment variables:
-
-| Provider | Required variables |
-| --- | --- |
-| `openai` | `RADAR_OPENAI_API_KEY` |
-| `anthropic` | `RADAR_ANTHROPIC_API_KEY` |
-| `azure` | `RADAR_AZURE_OPENAI_API_KEY`, `RADAR_AZURE_OPENAI_ENDPOINT`, `RADAR_AZURE_OPENAI_DEPLOYMENT` |
-
-### Telegram delivery
-
-Set a bot token and lock delivery to one chat id:
-
-```bash
-export RADAR_TELEGRAM_BOT_TOKEN="..."
-export RADAR_TELEGRAM_CHAT_ID="123456789"
-```
-
-Or configure in TOML (token still comes from the environment):
-
-```toml
-[telegram]
-chat_id = 123456789
-timeout_seconds = 30
-```
-
-`radar once` and `radar run` send the compiled brief to that chat after the
-usual stdout or file write. Listen for operator commands in a separate process:
-
-```bash
-radar telegram poll --config examples/radar.toml
-```
-
-Commands are accepted only from the configured chat id:
-
-- `status` — sources, memory counts, synthesis mode
-- `find <url>` — focused brief for one URL (uses persisted memory when present)
-
-## Scheduling
-
-Production hosts should run `radar once` on a timer instead of keeping
-`radar run` in a shell. The `schedule` helper renders cron or systemd artifacts
-from your config file:
-
-```bash
-radar schedule --config examples/radar.toml --format cron
-radar schedule --config examples/radar.toml --format systemd --output-dir ./systemd
-```
-
-Optional `[schedule]` settings in TOML:
-
-```toml
-[schedule]
-preset = "daily"   # daily | interval
-at = "08:00"       # local HH:MM for the daily preset
-```
-
-The `interval` preset uses root `interval_seconds` and is best paired with
-systemd when the period is not hour-aligned. Add `--with-telegram-poll` to emit a
-long-running unit for `radar telegram poll`.
-
-Static examples live under `examples/scheduling/`. Full config keys are listed
-in [docs/config.md](docs/config.md).
-
-## Roadmap
-
-| Milestone | Scope |
-| --- | --- |
-| r1 | Standalone package, typed source layout, `radar once`, `radar run`, config via env/file, tests, CI |
-| r2 | Pluggable source connectors for arXiv, Hacker News, GitHub, and Hugging Face |
-| r3 | File-backed seen-store and persisted findings to avoid repeated briefs |
-| r4 | Model-agnostic synthesis backend for structured brief generation |
-| r5 | Telegram delivery and locked-down two-way control commands |
-| r6 | Scheduling presets for systemd and cron |
-| r7 | Examples, screenshots, and clear separation between free core and Pro extras (done) |
+- [`acceptance-report-template.md`](docs/procurement-pack/acceptance-report-template.md) — sign-off oriented report skeleton
+- [`clause-snippets.md`](docs/procurement-pack/clause-snippets.md) — sample RFP/SOW language (**not legal advice**)
 
 ## Development
 
 ```bash
-python -m pip install -e .
+python -m pip install -e ".[dev,pdf]"
 python -m pytest -q
+aak --help
 ```
 
-The package targets Python 3.11+ and uses only the standard library for the first
-milestone.
+Targets Python 3.11+. Core runtime depends on PyYAML only; PDF is optional via
+`fpdf2`.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

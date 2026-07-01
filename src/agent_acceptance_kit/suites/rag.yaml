@@ -1,0 +1,42 @@
+name: rag
+version: "1.0.0"
+description: >
+  Retrieval-augmented probes that require citing injected context. Expect agent
+  endpoint to surface document grounding; raw API should fail attribution on
+  citation markers.
+probes:
+  - id: rag-citation-001
+    prompt: >
+      Using only the provided policy excerpt, what is the data retention period
+      for customer telemetry?
+    context: |
+      Policy excerpt (ACME-2026-04): Customer telemetry is retained for 90 days
+      in hot storage and 13 months in cold archive unless a legal hold applies.
+    tags: [retrieval, citation, compliance]
+    expectation:
+      contains: ["90 days", "13 months"]
+      regex: ["retention|retained"]
+
+  - id: rag-citation-002
+    prompt: >
+      Quote the SLA uptime target from the attached runbook snippet.
+    context: |
+      Runbook snippet: Production API tier targets 99.95% monthly uptime excluding
+      scheduled maintenance windows filed 72 hours in advance.
+    tags: [retrieval, quote]
+    expectation:
+      contains: ["99.95%"]
+      regex: ["uptime|SLA"]
+
+  - id: rag-conflict-003
+    prompt: >
+      The context mentions two backup frequencies. Which applies to database
+      replicas according to the excerpt?
+    context: |
+      Note A: Full backups run weekly on Sundays.
+      Note B: Database replicas use continuous point-in-time recovery with
+      15-minute log shipping; this overrides weekly full backups for replicas.
+    tags: [retrieval, conflict]
+    expectation:
+      contains: ["15-minute", "point-in-time", "replicas"]
+      not_contains: ["weekly only"]
