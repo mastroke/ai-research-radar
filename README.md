@@ -63,12 +63,41 @@ The system boundary is currently simple:
 
 ## Quickstart
 
+Install once, then run the offline minimal config (no network or API keys):
+
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate
 python -m pip install -e .
+```
+
+Copy-paste to emit today's brief to stdout:
+
+```bash
 radar once --config examples/configs/minimal.toml
 ```
+
+**Sample daily brief** (deterministic compiler, from the minimal config):
+
+```text
+# Desk Radar Brief
+
+Generated: 2026-07-02 UTC
+
+## Signal
+
+1. [Memory agents](https://example.com/memory-agents) (manual)
+   - Why it matters: Framing for durable agent state and conflict handling.
+
+2. [Eval gates before release](https://example.com/eval-gates) (manual)
+   - Why it matters: Regression thresholds for agent workflows.
+
+## Watch Terms
+agents, memory, evaluation
+```
+
+More fixture briefs: [`deterministic-sample.md`](examples/briefs/deterministic-sample.md),
+[`multi-source-sample.md`](examples/briefs/multi-source-sample.md). Config keys:
+[docs/config.md](docs/config.md).
 
 ### Screenshots
 
@@ -93,24 +122,12 @@ Telegram `status` response when delivery and control are configured:
 | Full stack | [`examples/radar.toml`](examples/radar.toml) | Schedule block plus optional synthesis and Telegram |
 
 ```bash
-# Offline smoke test (no network)
-radar once --config examples/configs/minimal.toml
-
 # Live connectors with memory dedup
 radar once --config examples/configs/connectors.toml
 
-# One-off CLI item
+# One-off CLI item (no config file)
 radar once --item "Memory agents|https://example.com/memory-agents|manual|Relevant to durable agent state"
 ```
-
-### Example briefs
-
-Static samples checked into the repo (not generated at runtime):
-
-- [`examples/briefs/deterministic-sample.md`](examples/briefs/deterministic-sample.md) — ranked manual and seed items
-- [`examples/briefs/multi-source-sample.md`](examples/briefs/multi-source-sample.md) — cross-source connector shape
-
-Full config reference: [docs/config.md](docs/config.md).
 
 Example `examples/radar.toml`:
 
